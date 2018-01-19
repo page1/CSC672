@@ -13,7 +13,7 @@ names(data) <- folders
 column_names <- unique(unlist(lapply(data, names)))
 
 # Gives errors on: RectBigSide, RectRatio, SegStatus, Kim
-for(column_name in column_names){
+for(column_name in column_names){#column_names
   dir.create(file.path('prelim', column_name), recursive = T, showWarnings = F)
   print(column_name)
   combined_columns <- lapply(names(data), function(dataset_name){
@@ -23,11 +23,25 @@ for(column_name in column_names){
   }) %>% do.call('rbind', .) %>%
     filter(!is.null(value))
   tryCatch({
-      prelim_hist <- ggplot(data=combined_columns, 
-                            aes(x = value, y = ..density.., colour = dataset)) + 
-        geom_freqpoly() +
-        ggtitle(paste(column_name))
-      ggsave(file.path('prelim', column_name, paste("density_compare_", column_name, ".png", sep = "")), plot = prelim_hist)
+      if(column_name %in% c('RectBigSide', 'RectRatio', 'SegStatus', 'Kim')){
+        #do special things
+      } else {
+        prelim_hist <- ggplot(data=combined_columns, 
+                              aes(x = value, colour = dataset)) + 
+          geom_density() +
+          ggtitle(paste(column_name)) +
+          ylab('Density') +
+          xlab('Value')
+        ggsave(file.path('prelim', column_name, paste("density_compare_", column_name, ".png", sep = "")), plot = prelim_hist)
+        
+        prelim_hist <- ggplot(data=combined_columns, 
+                              aes(x = value, y = ..scaled.., colour = dataset)) + 
+          geom_density() +
+          ggtitle(paste(column_name)) +
+          ylab('Scaled Density') +
+          xlab('Value')
+        ggsave(file.path('prelim', column_name, paste("scaled_density_compare_", column_name, ".png", sep = "")), plot = prelim_hist)
+      }
     },
     error = function(e) {print(paste('issue with', column_name, e))}
   )
