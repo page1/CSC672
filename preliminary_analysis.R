@@ -59,6 +59,17 @@ for(column_name in column_names){#column_names
             xlab('Time')
           ggsave(file, plot = prelim_timeplot)
         }
+        
+        file <- file.path('prelim', column_name, paste("boxplot_compare_", column_name, ".png", sep = ""))
+        if(!file.exists(file)){
+          prelim_timeplot <- ggplot(data=combined_columns, 
+                                    aes(x = dataset, y = value)) + 
+            geom_boxplot() +
+            ggtitle(paste(column_name)) +
+            ylab('Value') +
+            xlab('Dataset')
+          ggsave(file, plot = prelim_timeplot)
+        }
       }
     },
     error = function(e) {print(paste('issue with', column_name, e))}
