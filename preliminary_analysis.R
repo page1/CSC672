@@ -75,3 +75,5 @@ for(column_name in column_names){#column_names
     error = function(e) {print(paste('issue with', column_name, e))}
   )
 }
+
+#Scott was here
