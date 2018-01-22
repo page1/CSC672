@@ -78,3 +78,59 @@ for(column_name in column_names){#column_names
 #  This is Steve.  
 #Scott was here
 # Sarah is alive and the coolest girl in the group
+
+##AG BEGIN##
+
+##TIME##
+
+#Convert Time Elapsed Variable to a DateTime Object for time series plotting
+library(readr)
+library(ggplot2)
+N2_f1 <- read_csv("data/N2_f1.csv", col_types = cols(DirectionCode = col_factor(levels = c("1", "2")), 
+        Posture = col_factor(levels = c("0", "1", "2", "3", "4")), 
+        Kim = col_factor(levels = c("Backward-ReverseLong", "Backward-ReverseShort", "Forward-NTD", "Forward-Shallow", "Forward-Sharp", "Stopped-ReverseLong", "Stopped-ReverseShort", "Stopped-Stop"))))
+rows <- 1:171403
+dateString <- rep("2018-01-01 00:00:00",length(rows))
+dateTime <- as.POSIXct(dateString)
+dateTime <- dateTime + N2_f1$ElapsedTimeInLogFile + 0.0005
+N2_f1 <- cbind(dateTime, N2_f1)
+op <- options(digits.secs=3)
+#options(op) to reset options
+
+# Plot Histogram of Time Elapsed Per Frame
+ggplot(data=N2_f1, aes(x= DeltaTimeInLogFile)) + geom_histogram(bins=400) + 
+  ggtitle("Time Elapsed Per Frame (in Seconds)") +
+  xlab("Elapsed Time") + ylab("Count") +
+  scale_x_continuous(breaks=seq(0, 0.1, 0.01)) +
+  scale_y_continuous(breaks=seq(0, 50000, 2500)) +
+  coord_cartesian(xlim=c(0, 0.1)) +
+  theme_light()
+
+# Plot Boxplot of Time Elapsed Per Frame
+ggplot(data=N2_f1, aes(x="", y= DeltaTimeInLogFile)) + geom_boxplot() + 
+  ggtitle("Time Elapsed Per Frame (in Seconds)") +
+  xlab("Time") + ylab("Seconds") + 
+  #scale_y_continuous(breaks=seq(0, 0.4, 0.01)) 
+  #scale_y_continuous(breaks=seq(0, 200000, 1000)) +
+  theme_light()
+
+#Plot Bar Graph of Delta Time by Time
+ggplot(data=N2_f1, aes(x=dateTime, y=DeltaTimeInLogFile)) + geom_bar(stat="identity") +
+  ggtitle("Time Elapsed Per Frame (in Seconds)") +
+  xlab("Elapsed Time") + ylab("Time Per Frame") +
+  scale_x_datetime(
+    limits = c(
+      as.POSIXct("2018-01-01 00:00:00 GMT"),
+      as.POSIXct("2018-01-01 00:00:50 GMT")                 
+                   )) +
+  theme_light()
+
+##POSTURES##
+
+##AG END##
+
+
+
+
+
+
