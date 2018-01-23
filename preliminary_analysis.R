@@ -87,7 +87,8 @@ for(column_name in column_names){#column_names
 library(readr)
 library(ggplot2)
 N2_f1 <- read_csv("data/N2_f1.csv", col_types = cols(DirectionCode = col_factor(levels = c("1", "2")), 
-        Posture = col_factor(levels = c("0", "1", "2", "3", "4")), 
+        Posture = col_factor(levels = c("1", "2", "3", "4")),
+        IsLoop = col_factor(levels = c("0", "1")),
         Kim = col_factor(levels = c("Backward-ReverseLong", "Backward-ReverseShort", "Forward-NTD", "Forward-Shallow", "Forward-Sharp", "Stopped-ReverseLong", "Stopped-ReverseShort", "Stopped-Stop"))))
 rows <- 1:171403
 dateString <- rep("2018-01-01 00:00:00",length(rows))
@@ -96,6 +97,7 @@ dateTime <- dateTime + N2_f1$ElapsedTimeInLogFile + 0.0005
 N2_f1 <- cbind(dateTime, N2_f1)
 op <- options(digits.secs=3)
 #options(op) to reset options
+N2_f1_2 <- N2_f1[1:82468,]
 
 # Plot Histogram of Time Elapsed Per Frame
 ggplot(data=N2_f1, aes(x= DeltaTimeInLogFile)) + geom_histogram(bins=400) + 
@@ -126,6 +128,69 @@ ggplot(data=N2_f1, aes(x=dateTime, y=DeltaTimeInLogFile)) + geom_bar(stat="ident
   theme_light()
 
 ##POSTURES##
+
+# N2_nf4 Worm
+N2_nf4 <- read_csv("data/N2_nf4.csv", col_types = cols(DirectionCode = col_factor(levels = c("1", "2")), Posture = col_factor(levels = c("1", "2", "3", "4")), Kim = col_factor(levels = c("Backward-ReverseLong", "Backward-ReverseShort", "Forward-NTD", "Forward-Shallow", "Forward-Sharp", "Stopped-ReverseLong", "Stopped-ReverseShort", "Stopped-Stop"))))
+
+rows <- 1:nrow(N2_nf4)
+dateString <- rep("2018-01-01 00:00:00",length(rows))
+dateTime <- as.POSIXct(dateString)
+dateTime <- dateTime + N2_nf4$ElapsedTimeInLogFile + 0.0005
+N2_nf4 <- cbind(dateTime, N2_nf4)
+op <- options(digits.secs=3)
+#options(op) to reset options
+
+# N2_nf5 Worm
+N2_nf5 <- read_csv("data/N2_nf5.csv", col_types = cols(DirectionCode = col_factor(levels = c("1", "2")), Posture = col_factor(levels = c("1", "2", "3", "4")), Kim = col_factor(levels = c("Backward-ReverseLong", "Backward-ReverseShort", "Forward", "Forward-Sharp", "Stop"))))
+
+rows <- 1:nrow(N2_nf5)
+dateString <- rep("2018-01-01 00:00:00",length(rows))
+dateTime <- as.POSIXct(dateString)
+dateTime <- dateTime + N2_nf5$ElapsedTimeInLogFile + 0.0005
+N2_nf5 <- cbind(dateTime, N2_nf5)
+op <- options(digits.secs=3)
+#options(op) to reset options
+
+# tph1_f6 Worm
+tph1_f6 <- read_csv("data/tph1_f6.csv", col_types = cols(DirectionCode = col_factor(levels = c("1", "2")), Posture = col_factor(levels = c("1", "2", "3", "4")), Kim = col_factor(levels = c("Backward-ReverseLong", "Backward-ReverseShort", "Forward-NTD", "Forward-Shallow", "Forward-Sharp", "Stopped-ReverseLong", "Stopped-ReverseShort", "Stopped-Stop"))))
+
+rows <- 1:nrow(tph1_f6)
+dateString <- rep("2018-01-01 00:00:00",length(rows))
+dateTime <- as.POSIXct(dateString)
+dateTime <- dateTime + tph1_f6$ElapsedTimeInLogFile + 0.0005
+tph1_f6 <- cbind(dateTime, tph1_f6)
+op <- options(digits.secs=3)
+#options(op) to reset options
+
+# Plot Boxplot of Postures
+ggplot(data=N2_nf4, aes(x=Posture, color=Posture, fill=Posture)) + geom_bar(aes(y=(..count..)/sum(..count..))) + 
+  ggtitle("Postures") +
+  xlab("Postures") + ylab("Counts") + 
+  scale_y_continuous(labels=scales::percent) +
+  #scale_y_continuous(breaks=seq(0, 80000, 5000)) +
+  theme_light()
+
+# Plot Bar Chart of Postures
+ggplot(tph1_f6, aes(x= Posture)) + 
+  geom_bar(aes(y = (..count..)/sum(..count..), fill = Posture), stat="count") +
+  geom_text(aes(label = scales::percent((..count..)/sum(..count..)),
+                 y= (..count..)/sum(..count..) ), stat= "count", vjust = -.5) +
+  ggtitle("Posture Classification (tph1_f6)") +
+  labs(y = "Relative Frequencies", fill="Posture") +
+  scale_y_continuous(labels=scales::percent) +
+  scale_x_discrete(labels=c("1" = "Non-Loop", "2" = "Delta",
+                            "3" = "Omega", "4" = "Gamma"))
+
+# Plot Bar Chart of Movements
+ggplot(tph1_f6, aes(x= Kim)) + 
+  geom_bar(aes(y = (..count..)/sum(..count..), fill = Kim), stat="count") +
+  geom_text(aes(label = scales::percent((..count..)/sum(..count..)),
+                y= (..count..)/sum(..count..) ), stat= "count", hjust = -.1) +
+  ggtitle("Movement State Classification (tph1_f6)") +
+  labs(y = "Relative Frequencies", fill="Movement State") +
+  scale_y_continuous(labels=scales::percent) +
+  coord_flip() +
+  theme_light()
 
 ##AG END##
 
