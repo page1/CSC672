@@ -85,6 +85,7 @@ cor_plot_data <- lapply(data, function(x) x[,1:91]) %>%
   discard(is.factor) %>%
   discard(is.character)
 
+#easy to use colum name groups
 posture_column_names <- c("Elongation",
                           "Heywood",
                           "Hydraulic",
