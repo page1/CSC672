@@ -89,6 +89,7 @@ library(ggplot2)
 N2_f1 <- read_csv("data/N2_f1.csv", col_types = cols(DirectionCode = col_factor(levels = c("1", "2")), 
         Posture = col_factor(levels = c("1", "2", "3", "4")),
         IsLoop = col_factor(levels = c("0", "1")),
+        SegStatus = col_factor(levels = c("Good", "Bad")),
         Kim = col_factor(levels = c("Backward-ReverseLong", "Backward-ReverseShort", "Forward-NTD", "Forward-Shallow", "Forward-Sharp", "Stopped-ReverseLong", "Stopped-ReverseShort", "Stopped-Stop"))))
 rows <- 1:171403
 dateString <- rep("2018-01-01 00:00:00",length(rows))
@@ -130,7 +131,11 @@ ggplot(data=N2_f1, aes(x=dateTime, y=DeltaTimeInLogFile)) + geom_bar(stat="ident
 ##POSTURES##
 
 # N2_nf4 Worm
-N2_nf4 <- read_csv("data/N2_nf4.csv", col_types = cols(DirectionCode = col_factor(levels = c("1", "2")), Posture = col_factor(levels = c("1", "2", "3", "4")), Kim = col_factor(levels = c("Backward-ReverseLong", "Backward-ReverseShort", "Forward-NTD", "Forward-Shallow", "Forward-Sharp", "Stopped-ReverseLong", "Stopped-ReverseShort", "Stopped-Stop"))))
+N2_nf4 <- read_csv("data/N2_nf4.csv", col_types = cols(DirectionCode = col_factor(levels = c("1", "2")), 
+              Posture = col_factor(levels = c("1", "2", "3", "4")),
+              IsLoop = col_factor(levels = c("0", "1")),
+              SegStatus = col_factor(levels = c("Good", "Bad")),
+              Kim = col_factor(levels = c("Backward-ReverseLong", "Backward-ReverseShort", "Forward-NTD", "Forward-Shallow", "Forward-Sharp", "Stopped-ReverseLong", "Stopped-ReverseShort", "Stopped-Stop"))))
 
 rows <- 1:nrow(N2_nf4)
 dateString <- rep("2018-01-01 00:00:00",length(rows))
@@ -141,7 +146,11 @@ op <- options(digits.secs=3)
 #options(op) to reset options
 
 # N2_nf5 Worm
-N2_nf5 <- read_csv("data/N2_nf5.csv", col_types = cols(DirectionCode = col_factor(levels = c("1", "2")), Posture = col_factor(levels = c("1", "2", "3", "4")), Kim = col_factor(levels = c("Backward-ReverseLong", "Backward-ReverseShort", "Forward", "Forward-Sharp", "Stop"))))
+N2_nf5 <- read_csv("data/N2_nf5.csv", col_types = cols(DirectionCode = col_factor(levels = c("1", "2")), 
+              Posture = col_factor(levels = c("1", "2", "3", "4")), 
+              IsLoop = col_factor(levels = c("0", "1")),
+              SegStatus = col_factor(levels = c("Good", "Bad")),
+              Kim = col_factor(levels = c("Backward-ReverseLong", "Backward-ReverseShort", "Forward", "Forward-Sharp", "Stop"))))
 
 rows <- 1:nrow(N2_nf5)
 dateString <- rep("2018-01-01 00:00:00",length(rows))
@@ -152,7 +161,11 @@ op <- options(digits.secs=3)
 #options(op) to reset options
 
 # tph1_f6 Worm
-tph1_f6 <- read_csv("data/tph1_f6.csv", col_types = cols(DirectionCode = col_factor(levels = c("1", "2")), Posture = col_factor(levels = c("1", "2", "3", "4")), Kim = col_factor(levels = c("Backward-ReverseLong", "Backward-ReverseShort", "Forward-NTD", "Forward-Shallow", "Forward-Sharp", "Stopped-ReverseLong", "Stopped-ReverseShort", "Stopped-Stop"))))
+tph1_f6 <- read_csv("data/tph1_f6.csv", col_types = cols(DirectionCode = col_factor(levels = c("1", "2")), 
+              Posture = col_factor(levels = c("1", "2", "3", "4")), 
+              IsLoop = col_factor(levels = c("0", "1")),
+              SegStatus = col_factor(levels = c("Good", "Bad")),
+              Kim = col_factor(levels = c("Backward-ReverseLong", "Backward-ReverseShort", "Forward-NTD", "Forward-Shallow", "Forward-Sharp", "Stopped-ReverseLong", "Stopped-ReverseShort", "Stopped-Stop"))))
 
 rows <- 1:nrow(tph1_f6)
 dateString <- rep("2018-01-01 00:00:00",length(rows))
