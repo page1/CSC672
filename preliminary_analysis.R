@@ -1,6 +1,9 @@
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load("dplyr",
-               "ggplot2")
+               "ggplot2",
+               "readr",
+               "corrplot",
+               "purrr")
 
 subfolders <- list.dirs(path = "data", full.names = TRUE, recursive = TRUE)
 subfolders <- subfolders[-which(subfolders == 'data')]
@@ -75,17 +78,100 @@ for(column_name in column_names){#column_names
     error = function(e) {print(paste('issue with', column_name, e))}
   )
 }
-#  This is Steve.  
-#Scott was here
-# Sarah is alive and the coolest girl in the group
+
+# Overall Correlation Plot
+cor_plot_data <- lapply(data, function(x) x[,1:91]) %>% 
+  do.call('rbind', .) %>%
+  discard(is.factor) %>%
+  discard(is.character)
+
+posture_column_names <- c("Elongation",
+                          "Heywood",
+                          "Hydraulic",
+                          "IsLoop",
+                          "LengthToPixels",
+                          "MajorAxisLength",
+                          "MinorAxisLength",
+                          "Posture",
+                          "SkelNumPixels",
+                          "SkewerAngle",
+                          "SktAmpRatio",
+                          "SktCmptFactor",
+                          "SktElgFactor",
+                          "TrackAmplitude",
+                          "TrackPeriod")
+
+size_shape_column_names <- c("Area",
+                "Fatness",
+                "Length",
+                "Perimeter",
+                "Thickness")
+
+size_shape_extended_column_names <- c("Area",
+                                      "Fatness",
+                                      "Length",
+                                      "Perimeter",
+                                      "Thickness",
+                                      "CurvHead",
+                                      "CurvTail",
+                                      "MaxWidth")
+
+trajectory_column_names <- c("InstantAccel",
+                              "InstantVelocity",
+                              "Range",
+                              "VectorAngle")
+
+na_inf_clean <- function(df){
+  df <- df[complete.cases(df),]
+  df <- df[is.finite(rowSums(df)),]
+  return(df)
+}
+
+posture_data <- select(cor_plot_data, posture_column_names)
+posture_data <- na_inf_clean(posture_data)
+correlations <- cor(posture_data, use = "complete.obs")
+corrplot(correlations)
+
+size_and_shape_data <- select(cor_plot_data, size_shape_column_names)
+size_and_shape_data <- na_inf_clean(size_and_shape_data)
+correlations <- cor(size_and_shape_data)
+corrplot(correlations)
+
+size_and_shape_extended_data <- select(cor_plot_data, size_shape_extended_column_names)
+size_and_shape_extended_data <- na_inf_clean(size_and_shape_extended_data)
+correlations <- cor(size_and_shape_extended_data)
+corrplot(correlations)
+
+trajectory_data <- select(cor_plot_data, trajectory_column_names)
+trajectory_data <- na_inf_clean(trajectory_data)
+correlations <- cor(trajectory_data)
+corrplot(correlations)
+
+trajectory_posture_data <- select(cor_plot_data, c(trajectory_column_names, size_shape_extended_column_names))
+trajectory_posture_data <- na_inf_clean(trajectory_posture_data)
+correlations <- cor(trajectory_posture_data)
+corrplot(correlations)
+
+trajectory_size_and_shape_extended_data <- select(cor_plot_data, c(trajectory_column_names, size_shape_extended_column_names))
+trajectory_size_and_shape_extended_data <- na_inf_clean(trajectory_size_and_shape_extended_data)
+correlations <- cor(trajectory_size_and_shape_extended_data)
+corrplot(correlations)
+
+trajectory_posture_data <- select(cor_plot_data, c(trajectory_column_names, posture_column_names))
+trajectory_posture_data <- na_inf_clean(trajectory_posture_data)
+correlations <- cor(trajectory_posture_data)
+corrplot(correlations)
+
+size_shape_extended_posture_data <- select(cor_plot_data, c(size_shape_extended_column_names, posture_column_names))
+size_shape_extended_posture_data <- na_inf_clean(size_shape_extended_posture_data)
+correlations <- cor(size_shape_extended_posture_data)
+corrplot(correlations)
 
 ##AG BEGIN##
 
 ##TIME##
 
 #Convert Time Elapsed Variable to a DateTime Object for time series plotting
-library(readr)
-library(ggplot2)
 N2_f1 <- read_csv("data/N2_f1.csv", col_types = cols(DirectionCode = col_factor(levels = c("1", "2")), 
         Posture = col_factor(levels = c("1", "2", "3", "4")),
         IsLoop = col_factor(levels = c("0", "1")),
