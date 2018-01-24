@@ -130,42 +130,51 @@ na_inf_clean <- function(df){
 posture_data <- select(cor_plot_data, posture_column_names)
 posture_data <- na_inf_clean(posture_data)
 correlations <- cor(posture_data, use = "complete.obs")
-corrplot(correlations)
+corrplot(correlations,
+         main = "Posture",
+         mar=c(0,0,1.5,0))
 
 size_and_shape_data <- select(cor_plot_data, size_shape_column_names)
 size_and_shape_data <- na_inf_clean(size_and_shape_data)
 correlations <- cor(size_and_shape_data)
-corrplot(correlations)
+corrplot(correlations,
+         main = "Shape and Size",
+         mar=c(0,0,1.5,0))
 
 size_and_shape_extended_data <- select(cor_plot_data, size_shape_extended_column_names)
 size_and_shape_extended_data <- na_inf_clean(size_and_shape_extended_data)
 correlations <- cor(size_and_shape_extended_data)
-corrplot(correlations)
+corrplot(correlations,
+         main = "Extended Shape and Size",
+         mar=c(0,0,1.5,0))
 
 trajectory_data <- select(cor_plot_data, trajectory_column_names)
 trajectory_data <- na_inf_clean(trajectory_data)
 correlations <- cor(trajectory_data)
-corrplot(correlations)
-
-trajectory_posture_data <- select(cor_plot_data, c(trajectory_column_names, size_shape_extended_column_names))
-trajectory_posture_data <- na_inf_clean(trajectory_posture_data)
-correlations <- cor(trajectory_posture_data)
-corrplot(correlations)
+corrplot(correlations,
+         main = "Trajectory",
+         mar=c(0,0,1.5,0))
 
 trajectory_size_and_shape_extended_data <- select(cor_plot_data, c(trajectory_column_names, size_shape_extended_column_names))
 trajectory_size_and_shape_extended_data <- na_inf_clean(trajectory_size_and_shape_extended_data)
 correlations <- cor(trajectory_size_and_shape_extended_data)
-corrplot(correlations)
+corrplot(correlations,
+         main = "Extended Shape and Size & Trajectory",
+         mar=c(0,0,1.5,0))
 
 trajectory_posture_data <- select(cor_plot_data, c(trajectory_column_names, posture_column_names))
 trajectory_posture_data <- na_inf_clean(trajectory_posture_data)
 correlations <- cor(trajectory_posture_data)
-corrplot(correlations)
+corrplot(correlations,
+         main = "Trajectory & Posture",
+         mar=c(0,0,1.5,0))
 
 size_shape_extended_posture_data <- select(cor_plot_data, c(size_shape_extended_column_names, posture_column_names))
 size_shape_extended_posture_data <- na_inf_clean(size_shape_extended_posture_data)
 correlations <- cor(size_shape_extended_posture_data)
-corrplot(correlations)
+corrplot(correlations,
+         main = "Extended Shape and Size & Posture",
+         mar=c(0,0,1.5,0))
 
 ##AG BEGIN##
 
