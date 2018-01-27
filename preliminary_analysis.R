@@ -182,7 +182,7 @@ corrplot(correlations,
 ##TIME##
 
 #Convert Time Elapsed Variable to a DateTime Object for time series plotting
-N2_f1 <- read_csv("data/N2_f1.csv", col_types = cols(DirectionCode = col_factor(levels = c("1", "2")), 
+N2_f1 <- read_csv("data/N2_f1/masterFile.csv", col_types = cols(DirectionCode = col_factor(levels = c("1", "2")), 
         Posture = col_factor(levels = c("1", "2", "3", "4")),
         IsLoop = col_factor(levels = c("0", "1")),
         SegStatus = col_factor(levels = c("Good", "Bad")),
@@ -227,7 +227,7 @@ ggplot(data=N2_f1, aes(x=dateTime, y=DeltaTimeInLogFile)) + geom_bar(stat="ident
 ##POSTURES##
 
 # N2_nf4 Worm
-N2_nf4 <- read_csv("data/N2_nf4.csv", col_types = cols(DirectionCode = col_factor(levels = c("1", "2")), 
+N2_nf4 <- read_csv("data/N2_nf4/masterFile.csv", col_types = cols(DirectionCode = col_factor(levels = c("1", "2")), 
               Posture = col_factor(levels = c("1", "2", "3", "4")),
               IsLoop = col_factor(levels = c("0", "1")),
               SegStatus = col_factor(levels = c("Good", "Bad")),
@@ -242,7 +242,7 @@ op <- options(digits.secs=3)
 #options(op) to reset options
 
 # N2_nf5 Worm
-N2_nf5 <- read_csv("data/N2_nf5.csv", col_types = cols(DirectionCode = col_factor(levels = c("1", "2")), 
+N2_nf5 <- read_csv("data/N2_nf5/masterFile.csv", col_types = cols(DirectionCode = col_factor(levels = c("1", "2")), 
               Posture = col_factor(levels = c("1", "2", "3", "4")), 
               IsLoop = col_factor(levels = c("0", "1")),
               SegStatus = col_factor(levels = c("Good", "Bad")),
@@ -257,7 +257,7 @@ op <- options(digits.secs=3)
 #options(op) to reset options
 
 # tph1_f6 Worm
-tph1_f6 <- read_csv("data/tph1_f6.csv", col_types = cols(DirectionCode = col_factor(levels = c("1", "2")), 
+tph1_f6 <- read_csv("data/tph1_f6/masterFile.csv", col_types = cols(DirectionCode = col_factor(levels = c("1", "2")), 
               Posture = col_factor(levels = c("1", "2", "3", "4")), 
               IsLoop = col_factor(levels = c("0", "1")),
               SegStatus = col_factor(levels = c("Good", "Bad")),
