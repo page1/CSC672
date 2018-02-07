@@ -3,7 +3,8 @@ pacman::p_load("dplyr",
                "ggplot2",
                "readr",
                "corrplot",
-               "purrr")
+               "purrr",
+               "broom")
 
 subfolders <- list.dirs(path = "data", full.names = TRUE, recursive = TRUE)
 subfolders <- subfolders[-which(subfolders == 'data')]
@@ -16,51 +17,54 @@ names(data) <- folders
 cc <- data[[2]][order(data[[2]]$FrameNum),]
 cc <- cc %>%
   mutate(xpos = TotalOffsetRows,
-         ypos = TotalOffsetCols)
+         ypos = TotalOffsetCols) %>%
+  filter(xpos != lag(xpos) | ypos != lag(ypos))
 p_hist <- data.frame()
 last_point <- c(0, 0)
 current_cluster <- 1
 clust <- sapply(1:nrow(cc), function(x){
   current_point <- cc[x,c('xpos', 'ypos')]
+  
   if(nrow(p_hist) == 0){
     p_hist <<- current_point
   }
+  
   cent <- colSums(p_hist) / nrow(p_hist)
   d <- dist(rbind(cent, current_point))
+  #print(d)
   print(paste(x, current_cluster, d[1][1]))
-  if(d[1][1] > 400){#new clust
-    #cent <<- current_point
+  rsq <- summary(lm(p_hist))$r.squared
+  #print(rsq)
+  if((rsq < .9) & nrow(p_hist) >= 10){#new clust
     current_cluster <<- current_cluster + 1
     last_point <<- current_point
     p_hist <<- current_point
-    #cent <<- current_point #jmp the center
+    #return(d)
     return(current_cluster)
   } else {
-    if(!all(last_point == current_point)){
-      #print(last_point)
-      #print(current_point)
-      #print(last_point == current_point)
-      #cent <<- (20 * cent + current_point) / 21 #smooth the center motion
-      last_point <<- current_point
-      p_hist <<- rbind(p_hist, current_point)
-    }
-    
+    last_point <<- current_point
+    p_hist <<- rbind(p_hist[seq(1, pmin(10, nrow(p_hist))),], current_point)
+    #return(d)
     return(current_cluster)
   }
 })
 
 cc$clust <- as.factor(clust)
-clust_stats <- cc %>% group_by(clust) %>%
-  summarize(x_range = max(xpos) - min(xpos), 
-            y_range = max(ypos) - min(ypos),
-            n = n()) %>%
-  mutate(reach = sqrt(x_range^2 + y_range^2),
-         reach_rate = reach / n )
-
-clust_stats$reach_group <- kmeans(clust_stats$reach_rate, centers=3, nstart=100)$cluster
-cc <- cc %>%
-  inner_join(clust_stats, by = c('clust' = 'clust'))
-ggplot(aes(x = xpos, y = ypos, group = clust, color = as.factor(reach_group)), data = cc) +
-  geom_path()
-
-
+# clust_stats <- cc %>% group_by(clust) %>%
+#   #do(tidy(summary(lm(ypos ~ xpos, .))$r.squared))
+#   summarize(x_range = max(xpos) - min(xpos), 
+#             y_range = max(ypos) - min(ypos),
+#             n = n(),
+#             delta_time = max(ElapsedTimeInLogFile) - min(ElapsedTimeInLogFile)) %>%
+#   mutate(reach = sqrt(x_range^2 + y_range^2),
+#          reach_rate = reach / delta_time,
+#          pic_rate = delta_time / n) %>%
+#   filter(n >= 10)
+# 
+# clust_stats$reach_group <- kmeans(clust_stats$reach_rate, centers=3, nstart=100)$cluster
+# cc <- cc %>%
+#   inner_join(clust_stats, by = c('clust' = 'clust'))
+cc$every_other <- (as.numeric(clust) %% 2) == 0
+ggplot(aes(x = xpos, y = ypos, group = clust, color = every_other), data = cc) +
+  geom_path() +
+  ggtitle("Worm Path - Split when R^2 < 0.9")
