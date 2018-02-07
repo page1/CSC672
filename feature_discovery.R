@@ -14,10 +14,11 @@ folders <- gsub('data/', '', subfolders, fixed = T)
 data <- lapply(data_files, read.csv)
 names(data) <- folders
 
-cc <- data[[2]][order(data[[2]]$FrameNum),]
+cc <- data[[3]][order(data[[3]]$FrameNum),]
+cc <- cc[seq(1, nrow(cc), 10),]
 cc <- cc %>%
-  mutate(xpos = TotalOffsetRows,
-         ypos = TotalOffsetCols) %>%
+  mutate(xpos = CentroidX,
+         ypos = CentroidY) %>%
   filter(xpos != lag(xpos) | ypos != lag(ypos))
 p_hist <- data.frame()
 last_point <- c(0, 0)
@@ -35,7 +36,11 @@ clust <- sapply(1:nrow(cc), function(x){
   print(paste(x, current_cluster, d[1][1]))
   rsq <- summary(lm(p_hist))$r.squared
   #print(rsq)
-  if((rsq < .9) & nrow(p_hist) >= 10){#new clust
+  
+  #last_point <<- current_point
+  #\p_hist <<- rbind(current_point, p_hist[seq(1, pmin(100, nrow(p_hist))),])
+  
+  if(d > 300 & rsq < .9 & nrow(p_hist) >= 300){#new clust
     current_cluster <<- current_cluster + 1
     last_point <<- current_point
     p_hist <<- current_point
@@ -43,7 +48,7 @@ clust <- sapply(1:nrow(cc), function(x){
     return(current_cluster)
   } else {
     last_point <<- current_point
-    p_hist <<- rbind(p_hist[seq(1, pmin(10, nrow(p_hist))),], current_point)
+    p_hist <<- rbind(current_point, p_hist[seq(1, pmin(300, nrow(p_hist))),])
     #return(d)
     return(current_cluster)
   }
@@ -67,4 +72,4 @@ cc$clust <- as.factor(clust)
 cc$every_other <- (as.numeric(clust) %% 2) == 0
 ggplot(aes(x = xpos, y = ypos, group = clust, color = every_other), data = cc) +
   geom_path() +
-  ggtitle("Worm Path - Split when R^2 < 0.9")
+  ggtitle("Worm Path - Split when R^2 < 0.9 & distance from rolling centroid")
