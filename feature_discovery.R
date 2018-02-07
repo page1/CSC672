@@ -14,7 +14,7 @@ folders <- gsub('data/', '', subfolders, fixed = T)
 data <- lapply(data_files, read.csv)
 names(data) <- folders
 
-cc <- data[[3]][order(data[[3]]$FrameNum),]
+cc <- data[[2]][order(data[[2]]$FrameNum),]
 cc <- cc[seq(1, nrow(cc), 10),]
 cc <- cc %>%
   mutate(xpos = CentroidX,
@@ -72,4 +72,6 @@ cc$clust <- as.factor(clust)
 cc$every_other <- (as.numeric(clust) %% 2) == 0
 ggplot(aes(x = xpos, y = ypos, group = clust, color = every_other), data = cc) +
   geom_path() +
-  ggtitle("Worm Path - Split when R^2 < 0.9 & distance from rolling centroid")
+  ggtitle("Worm Path\nSplit when R^2 < 0.9 &\nMin Distance from Rolling Centroid") +
+  theme(title = element_text(size=20),
+        axis.title = element_text(size=15))
