@@ -35,20 +35,26 @@ all_worm_sub_paths <- mapply(function(a_worms_data, worm_name){
 
     #rotate path so last point falls on x axis y = 0
     last_point <- sub_path_centered[nrow(sub_path_centered),]
-    theta <- atan(last_point$ypos/last_point$xpos)
     
+    theta <- atan(last_point$ypos/last_point$xpos)
     rotation_matrix <- matrix(c(cos(theta), -sin(theta), sin(theta), cos(theta)),
                               ncol = 2,
                               nrow = 2,
                               byrow = T)
+    
     rotated_sub_path <-  as.matrix(sub_path_centered) %*% rotation_matrix
+    
+    if(sign(last_point$xpos) == -1){
+      half_rotate <- matrix(c(-1, 0, 0, -1),
+                            ncol = 2,
+                            nrow = 2,
+                            byrow = T)
+      rotated_sub_path <- as.matrix(rotated_sub_path) %*% half_rotate
+    }
+    
     rotated_sub_path <- as.data.frame(rotated_sub_path)
     colnames(rotated_sub_path) <- colnames(sub_path)
-    
-    #translate path so last point is in first quadrant
-    last_point <- rotated_sub_path[nrow(rotated_sub_path),]
-    rotated_sub_path <- apply(rotated_sub_path, 1, function(x) x * sign(last_point)) %>% do.call("rbind", .)
-    
+
     #plot(as.integer(rotated_sub_path$xpos), as.integer(rotated_sub_path$ypos))
     
     #path now starts at 0,0 and ends on x axis where y = 0

@@ -4,7 +4,7 @@
 
 # Session Data files
 .RData
-*.RData
+ld3.Rdata
 
 # Example code in package build process
 *-Ex.R
