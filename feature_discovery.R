@@ -133,3 +133,8 @@ for(worm_name_ in unique(all_worm_df$worm_name)){
   print(g)
 }
 
+pr_rotation_list <- lapply(data, function(x) {
+  prcomp(na.omit(select(head(x, 4000), Speed, SkewerAngle, AngularVelocity, Acceleration)), 
+             center = TRUE,
+             scale. = TRUE)$rotation
+})
