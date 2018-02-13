@@ -6,7 +6,8 @@ pacman::p_load("dplyr",
                "purrr",
                "broom",
                "Matrix",
-               "kml3d")
+               "kml3d",
+               "tidyr")
 
 subfolders <- list.dirs(path = "data", full.names = TRUE, recursive = TRUE)
 subfolders <- subfolders[-which(subfolders == 'data')]
@@ -17,10 +18,13 @@ data <- lapply(data_files, read.csv)
 names(data) <- folders
 
 sub_path_frames <- 50
+sample_rate <- 10
+min_samples <- as.integer(min(sapply(data, nrow)) / sample_rate) # don't overweight worm with most examples
 
 all_worm_sub_paths <- mapply(function(a_worms_data, worm_name){
   a_worms_data <- a_worms_data[order(a_worms_data$FrameNum),]
-  a_worms_data_sampled <- a_worms_data[seq(1, nrow(a_worms_data), 10),]
+  a_worms_data_sampled <- a_worms_data[seq(1, nrow(a_worms_data), sample_rate),] %>%
+    head(min_samples)
   
   a_worms_data_sampled <- a_worms_data_sampled %>%
     mutate(xpos = CentroidX,
@@ -66,7 +70,7 @@ all_worm_sub_paths <- mapply(function(a_worms_data, worm_name){
   })
   
   return(sub_paths)
-}, data, names(data)) %>% flatten()
+}, data, names(data))
 
 
 #we need to get data into [sub_path, time, variable] matrix
@@ -82,13 +86,14 @@ ld3 <- clusterLongData3d(traj=tradjectory_data,
                          idAll=paste("I-",1:dim(tradjectory_data)[1],sep=""),
                          time=1:dim(tradjectory_data)[2],
                          varNames = c("rotated_xpos", "rotated_ypos"))
-clust <- kml3d(ld3, nbClusters = c(3, 5, 7, 9), nbRedrawing = 200)
+clust <- kml3d(ld3, nbClusters = c(3, 4, 5, 6, 7), nbRedrawing = 20)
+
+# plot clusters vs x & y
+number_of_clusters <- 4
 
 # plot stats of one of the trialed cluster nb values vs time
-plot(ld3, 7, main = paste("All Worms", sub_path_frames, "Frames Sampled 1/10"))
+plot(ld3, number_of_clusters, main = paste("All Worms ", sub_path_frames, " Frames Sampled 1/", sample_rate, sep = ""), addLegend = F)
 
-# plot clusters vs x & y - irrespective of time
-number_of_clusters <- 7
 
 all_worm_df <- lapply(1:length(all_worm_sub_paths), function(x) {
   all_worm_sub_paths[[x]]$sub_path_id <- x
@@ -96,6 +101,16 @@ all_worm_df <- lapply(1:length(all_worm_sub_paths), function(x) {
   return(all_worm_sub_paths[[x]])
 }) %>%
   do.call("rbind", .)
+
+View(all_worm_df %>%
+  group_by(worm_name, sub_path_id, cluster) %>%
+  summarize() %>%
+  group_by(worm_name, cluster) %>%
+  summarize(n = n()) %>%
+  mutate(fraction = n / sum(n)) %>%
+  select(-n) %>%
+    spread(cluster, fraction, fill = 0))
+
 
 for(cluster_number in 1:number_of_clusters){
   cluster_letter <- c('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I')[cluster_number]
