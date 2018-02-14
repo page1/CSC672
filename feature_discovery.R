@@ -7,7 +7,8 @@ pacman::p_load("dplyr",
                "broom",
                "Matrix",
                "kml3d",
-               "tidyr")
+               "tidyr",
+               "psych")
 
 subfolders <- list.dirs(path = "data", full.names = TRUE, recursive = TRUE)
 subfolders <- subfolders[-which(subfolders == 'data')]
@@ -110,6 +111,20 @@ View(all_worm_df %>%
   mutate(fraction = n / sum(n)) %>%
   select(-n) %>%
     spread(cluster, fraction, fill = 0))
+transition_table <- all_worm_df %>%
+  group_by(worm_name, sub_path_id, cluster) %>%
+  summarize() %>%
+  group_by(worm_name) %>%
+  mutate(last_state = paste("Last", lag(cluster), sep = "_")) %>%
+  group_by(worm_name, cluster, last_state) %>%
+  summarize(n = n()) %>%
+  group_by(worm_name, cluster) %>%
+  mutate(fraction = n / sum(n)) %>%
+  select(-n) %>%
+  spread(last_state, fraction, fill = 0) %>%
+  arrange(cluster)
+
+View(transition_table)
 
 
 for(cluster_number in 1:number_of_clusters){
@@ -137,4 +152,10 @@ pr_rotation_list <- lapply(data, function(x) {
   prcomp(na.omit(select(head(x, 4000), Speed, SkewerAngle, AngularVelocity, Acceleration)), 
              center = TRUE,
              scale. = TRUE)$rotation
+})
+
+fact_list <- lapply(data, function(x) {
+  pca_iris_rotated <- principal(na.omit(select(head(x, 4000), Speed, SkewerAngle, AngularVelocity, Acceleration)), 
+                                       rotate="varimax", nfactors=3, scores=TRUE)
+  return(pca_iris_rotated)
 })
