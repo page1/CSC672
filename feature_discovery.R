@@ -8,7 +8,9 @@ pacman::p_load("dplyr",
                "Matrix",
                "kml3d",
                "tidyr",
-               "psych")
+               "HMM",
+               "clue",
+               "parallel")
 
 subfolders <- list.dirs(path = "data", full.names = TRUE, recursive = TRUE)
 subfolders <- subfolders[-which(subfolders == 'data')]
@@ -103,14 +105,17 @@ all_worm_df <- lapply(1:length(all_worm_sub_paths), function(x) {
 }) %>%
   do.call("rbind", .)
 
+#time spent in each observed cluster
 View(all_worm_df %>%
   group_by(worm_name, sub_path_id, cluster) %>%
   summarize() %>%
   group_by(worm_name, cluster) %>%
   summarize(n = n()) %>%
   mutate(fraction = n / sum(n)) %>%
-  select(-n) %>%
+  dplyr::select(-n) %>%
     spread(cluster, fraction, fill = 0))
+
+#transitions between each observed cluster
 transition_table <- all_worm_df %>%
   group_by(worm_name, sub_path_id, cluster) %>%
   summarize() %>%
@@ -126,6 +131,67 @@ transition_table <- all_worm_df %>%
 
 View(transition_table)
 
+#WARNING: The following will cook your cpu if its not great!
+#fit many HMM to each worms observed states
+worm_hmm_lists <- mclapply(unique(all_worm_df$worm_name), function(a_worm_name){
+  #list of observed states from a worm
+  observed_states <- all_worm_df %>%
+    group_by(worm_name, sub_path_id, cluster) %>%
+    summarize() %>%
+    filter(worm_name == a_worm_name) %>%
+    ungroup() %>%
+    dplyr::select(cluster)
+  
+  #fit several hmm's to the observed sequences
+  hmm_list <- mclapply(1:13, function(x){
+    hidden_states <- 4
+    emission_states <- number_of_clusters
+    #random init of transition and emission tables
+    transProbs <- matrix(runif(hidden_states * hidden_states), hidden_states)
+    transProbs <- transProbs / rowSums(transProbs)
+    emissionProbs <- matrix(runif(hidden_states * emission_states), hidden_states)
+    emissionProbs <- emissionProbs / rowSums(emissionProbs)
+    hmm <- initHMM(c("P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z")[1:hidden_states],
+                   c("A", "B", "C", "D", "E", "F", "G", "H", "I")[1:emission_states],
+                   transProbs=transProbs,
+                   emissionProbs=emissionProbs)
+    #fit hmm with baumWelch
+    baumWelch(hmm, observed_states$cluster, maxIterations = 20000, pseudoCount = .01)$hmm
+  }, mc.cores = detectCores(), mc.preschedule = F)
+  
+  #return sets of fitted models for further ensembling
+  return(list("worm_name" = a_worm_name,
+    "observed_states" = observed_states,
+    "hmm_list" = hmm_list))
+}, mc.cores = detectCores(), mc.preschedule = F)
+
+#Investigate dissimilarity of hidden states between pairwise worms
+dissimilarity_table <- mclapply(1:length(worm_hmm_lists), function(x){
+  sapply(1:length(worm_hmm_lists), function(y){
+    #Identify most likely sequence of hidden states for worm X
+    partitions <- lapply(worm_hmm_lists[[x]]$hmm_list, function(hmm){
+      as.cl_partition(viterbi(hmm, worm_hmm_lists[[x]]$observed_states$cluster))
+    })
+    ensemble <- cl_ensemble(list = partitions)
+    #ensemble the viterbi sequence of model X on dataset X
+    x_consensus <- cl_consensus(ensemble, method = "soft/symdiff")
+    
+    partitions <- lapply(worm_hmm_lists[[y]]$hmm_list, function(hmm){
+      as.cl_partition(viterbi(hmm, worm_hmm_lists[[x]]$observed_states$cluster))
+    })
+    ensemble <- cl_ensemble(list = partitions)
+    #ensemble the viterbi sequence of model Y on dataset X
+    y_consensus <- cl_consensus(ensemble, method = "soft/symdiff")
+    
+    #Compair the ensemble viterbi sequences
+    cl_dissimilarity(x_consensus, y_consensus)
+  })
+}, mc.cores = detectCores())
+
+dissimilarity_table <- data.frame(dissimilarity_table)
+colnames(dissimilarity_table) <- paste(lapply(worm_hmm_lists, function(x) as.character(x$worm_name)), "states", sep = "_")
+rownames(dissimilarity_table) <- paste(lapply(worm_hmm_lists, function(x) as.character(x$worm_name)), "hmm", sep = "_")
+View(dissimilarity_table)
 
 for(cluster_number in 1:number_of_clusters){
   cluster_letter <- c('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I')[cluster_number]
@@ -147,15 +213,3 @@ for(worm_name_ in unique(all_worm_df$worm_name)){
   
   print(g)
 }
-
-pr_rotation_list <- lapply(data, function(x) {
-  prcomp(na.omit(select(head(x, 4000), Speed, SkewerAngle, AngularVelocity, Acceleration)), 
-             center = TRUE,
-             scale. = TRUE)$rotation
-})
-
-fact_list <- lapply(data, function(x) {
-  pca_iris_rotated <- principal(na.omit(select(head(x, 4000), Speed, SkewerAngle, AngularVelocity, Acceleration)), 
-                                       rotate="varimax", nfactors=3, scores=TRUE)
-  return(pca_iris_rotated)
-})
