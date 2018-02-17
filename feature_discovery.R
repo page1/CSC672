@@ -20,8 +20,8 @@ folders <- gsub('data/', '', subfolders, fixed = T)
 data <- lapply(data_files, read.csv)
 names(data) <- folders
 
-sub_path_frames <- 50
-sample_rate <- 10
+sub_path_frames <- 66
+sample_rate <- 2
 min_samples <- as.integer(min(sapply(data, nrow)) / sample_rate) # don't overweight worm with most examples
 
 all_worm_sub_paths <- mapply(function(a_worms_data, worm_name){
@@ -89,10 +89,10 @@ ld3 <- clusterLongData3d(traj=tradjectory_data,
                          idAll=paste("I-",1:dim(tradjectory_data)[1],sep=""),
                          time=1:dim(tradjectory_data)[2],
                          varNames = c("rotated_xpos", "rotated_ypos"))
-clust <- kml3d(ld3, nbClusters = c(3, 4, 5, 6, 7), nbRedrawing = 20)
+clust <- kml3d(ld3, nbClusters = c(3, 4, 5, 6, 7), nbRedrawing = 100)
 
 # plot clusters vs x & y
-number_of_clusters <- 4
+number_of_clusters <- 3
 
 # plot stats of one of the trialed cluster nb values vs time
 plot(ld3, number_of_clusters, main = paste("All Worms ", sub_path_frames, " Frames Sampled 1/", sample_rate, sep = ""), addLegend = F)
@@ -125,7 +125,7 @@ transition_table <- all_worm_df %>%
   summarize(n = n()) %>%
   group_by(worm_name, cluster) %>%
   mutate(fraction = n / sum(n)) %>%
-  select(-n) %>%
+  dplyr::select(-n) %>%
   spread(last_state, fraction, fill = 0) %>%
   arrange(cluster)
 
@@ -133,65 +133,74 @@ View(transition_table)
 
 #WARNING: The following will cook your cpu if its not great!
 #fit many HMM to each worms observed states
-worm_hmm_lists <- mclapply(unique(all_worm_df$worm_name), function(a_worm_name){
-  #list of observed states from a worm
-  observed_states <- all_worm_df %>%
-    group_by(worm_name, sub_path_id, cluster) %>%
-    summarize() %>%
-    filter(worm_name == a_worm_name) %>%
-    ungroup() %>%
-    dplyr::select(cluster)
-  
-  #fit several hmm's to the observed sequences
-  hmm_list <- mclapply(1:13, function(x){
-    hidden_states <- 4
-    emission_states <- number_of_clusters
-    #random init of transition and emission tables
-    transProbs <- matrix(runif(hidden_states * hidden_states), hidden_states)
-    transProbs <- transProbs / rowSums(transProbs)
-    emissionProbs <- matrix(runif(hidden_states * emission_states), hidden_states)
-    emissionProbs <- emissionProbs / rowSums(emissionProbs)
-    hmm <- initHMM(c("P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z")[1:hidden_states],
-                   c("A", "B", "C", "D", "E", "F", "G", "H", "I")[1:emission_states],
-                   transProbs=transProbs,
-                   emissionProbs=emissionProbs)
-    #fit hmm with baumWelch
-    baumWelch(hmm, observed_states$cluster, maxIterations = 20000, pseudoCount = .01)$hmm
+hmm_lists_by_hidden_states <- mclapply(3:10, function(num_hidden_states){
+  worm_hmm_lists <- mclapply(unique(all_worm_df$worm_name), function(a_worm_name){
+    #list of observed states from a worm
+    observed_states <- all_worm_df %>%
+      group_by(worm_name, sub_path_id, cluster) %>%
+      summarize() %>%
+      filter(worm_name == a_worm_name) %>%
+      ungroup() %>%
+      dplyr::select(cluster)
+    
+    #fit several hmm's to the observed sequences
+    hmm_list <- mclapply(1:7, function(x){
+      hidden_states <- num_hidden_states
+      emission_states <- number_of_clusters
+      #random init of transition and emission tables
+      transProbs <- matrix(runif(hidden_states * hidden_states), hidden_states)
+      transProbs <- transProbs / rowSums(transProbs)
+      emissionProbs <- matrix(runif(hidden_states * emission_states), hidden_states)
+      emissionProbs <- emissionProbs / rowSums(emissionProbs)
+      hmm <- initHMM(c("P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z")[1:hidden_states],
+                     c("A", "B", "C", "D", "E", "F", "G", "H", "I")[1:emission_states],
+                     transProbs=transProbs,
+                     emissionProbs=emissionProbs)
+      #fit hmm with baumWelch
+      baumWelch(hmm, observed_states$cluster, maxIterations = 20000, pseudoCount = .01)$hmm
+    }, mc.cores = detectCores(), mc.preschedule = F)
+    
+    #return sets of fitted models for further ensembling
+    return(list("worm_name" = a_worm_name,
+                "observed_states" = observed_states,
+                "hmm_list" = hmm_list))
   }, mc.cores = detectCores(), mc.preschedule = F)
   
-  #return sets of fitted models for further ensembling
-  return(list("worm_name" = a_worm_name,
-    "observed_states" = observed_states,
-    "hmm_list" = hmm_list))
-}, mc.cores = detectCores(), mc.preschedule = F)
+  return(worm_hmm_lists)
+}, mc.cores = as.integer((1 + detectCores()/13) * 2), mc.preschedule = F)
 
-#Investigate dissimilarity of hidden states between pairwise worms
-dissimilarity_table <- mclapply(1:length(worm_hmm_lists), function(x){
-  sapply(1:length(worm_hmm_lists), function(y){
-    #Identify most likely sequence of hidden states for worm X
-    partitions <- lapply(worm_hmm_lists[[x]]$hmm_list, function(hmm){
-      as.cl_partition(viterbi(hmm, worm_hmm_lists[[x]]$observed_states$cluster))
-    })
-    ensemble <- cl_ensemble(list = partitions)
-    #ensemble the viterbi sequence of model X on dataset X
-    x_consensus <- cl_consensus(ensemble, method = "soft/symdiff")
-    
-    partitions <- lapply(worm_hmm_lists[[y]]$hmm_list, function(hmm){
-      as.cl_partition(viterbi(hmm, worm_hmm_lists[[x]]$observed_states$cluster))
-    })
-    ensemble <- cl_ensemble(list = partitions)
-    #ensemble the viterbi sequence of model Y on dataset X
-    y_consensus <- cl_consensus(ensemble, method = "soft/symdiff")
-    
-    #Compair the ensemble viterbi sequences
-    cl_dissimilarity(x_consensus, y_consensus)
-  })
-}, mc.cores = detectCores())
+# load the hmm_lists .Rdata files and run them through to get bic_tables
+bic_tables <- lapply(hmm_lists_by_hidden_states, function(hidden_state_data){
+    foward_bic_loss_table <- mclapply(1:length(hidden_state_data), function(x){
+      sapply(1:length(hidden_state_data), function(y){
+        #Identify most likely sequence of hidden states for worm X
+        base_prob <- sapply(hidden_state_data[[x]]$hmm_list, function(hmm){
+          forward_probs <- forward(hmm, hidden_state_data[[x]]$observed_states$cluster)
+          max(forward_probs[,ncol(forward_probs)])
+        })
 
-dissimilarity_table <- data.frame(dissimilarity_table)
-colnames(dissimilarity_table) <- paste(lapply(worm_hmm_lists, function(x) as.character(x$worm_name)), "states", sep = "_")
-rownames(dissimilarity_table) <- paste(lapply(worm_hmm_lists, function(x) as.character(x$worm_name)), "hmm", sep = "_")
-View(dissimilarity_table)
+        num_hidden_states <- length(hidden_state_data[[x]]$hmm_list[[1]]$States)
+        base_prob_bic <- log(length(hidden_state_data[[x]]$observed_states$cluster)) * num_hidden_states -
+          2 * mean(base_prob)
+
+        alt_prob <- sapply(hidden_state_data[[y]]$hmm_list, function(hmm){
+          forward_probs <- forward(hmm, hidden_state_data[[x]]$observed_states$cluster)
+          max(forward_probs[,ncol(forward_probs)])
+        })
+
+        alt_prob_bic <- log(length(hidden_state_data[[x]]$observed_states$cluster)) * num_hidden_states -
+          2 * mean(alt_prob)
+
+        loss <- alt_prob_bic
+        return(loss)
+      })
+    }, mc.cores = detectCores())
+    
+    foward_bic_loss_table <- data.frame(foward_bic_loss_table)
+    colnames(foward_bic_loss_table) <- paste(lapply(hidden_state_data, function(x) as.character(x$worm_name)), "states", sep = "_")
+    rownames(foward_bic_loss_table) <- paste(lapply(hidden_state_data, function(x) as.character(x$worm_name)), "hmm", sep = "_")
+    return(foward_bic_loss_table)
+})
 
 for(cluster_number in 1:number_of_clusters){
   cluster_letter <- c('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I')[cluster_number]
@@ -213,3 +222,64 @@ for(worm_name_ in unique(all_worm_df$worm_name)){
   
   print(g)
 }
+
+
+
+# #Investigate dissimilarity of hidden states between pairwise worms
+# dissimilarity_table <- mclapply(1:length(worm_hmm_lists), function(x){
+#   sapply(1:length(worm_hmm_lists), function(y){
+#     #Identify most likely sequence of hidden states for worm X
+#     partitions <- lapply(worm_hmm_lists[[x]]$hmm_list, function(hmm){
+#       as.cl_hard_partition(viterbi(hmm, worm_hmm_lists[[x]]$observed_states$cluster))
+#     })
+#     ensemble <- cl_ensemble(list = partitions)
+#     #ensemble the viterbi sequence of model X on dataset X
+#     #x_consensus <- cl_consensus(ensemble)
+#     x_consensus <- cl_medoid(ensemble)
+#     
+#     partitions <- lapply(worm_hmm_lists[[y]]$hmm_list, function(hmm){
+#       as.cl_hard_partition(viterbi(hmm, worm_hmm_lists[[x]]$observed_states$cluster))
+#     })
+#     ensemble <- cl_ensemble(list = partitions)
+#     #ensemble the viterbi sequence of model Y on dataset X
+#     #y_consensus <- cl_consensus(ensemble)
+#     y_consensus <- cl_medoid(ensemble)
+#     
+#     #Compair the ensemble viterbi sequences
+#     cl_dissimilarity(x_consensus, y_consensus)
+#   })
+# }, mc.cores = detectCores())
+# 
+# dissimilarity_table <- data.frame(dissimilarity_table)
+# colnames(dissimilarity_table) <- paste(lapply(worm_hmm_lists, function(x) as.character(x$worm_name)), "states", sep = "_")
+# rownames(dissimilarity_table) <- paste(lapply(worm_hmm_lists, function(x) as.character(x$worm_name)), "hmm", sep = "_")
+# View(dissimilarity_table)
+# 
+# foward_bic_loss_table <- mclapply(1:length(worm_hmm_lists), function(x){
+#   sapply(1:length(worm_hmm_lists), function(y){
+#     #Identify most likely sequence of hidden states for worm X
+#     base_prob <- lapply(worm_hmm_lists[[x]]$hmm_list, function(hmm){
+#       foward(hmm, worm_hmm_lists[[x]]$observed_states$cluster)
+#     })
+#     
+#     base_prob_bic <- log(length(worm_hmm_lists[[x]]$observed_states$cluster)) * num_hidden_states -
+#       2 * mean(base_prob)
+#     
+#     alt_prob <- lapply(worm_hmm_lists[[y]]$hmm_list, function(hmm){
+#       foward(viterbi(hmm, worm_hmm_lists[[x]]$observed_states$cluster))
+#     })
+#     
+#     alt_prob_bic <- log(length(worm_hmm_lists[[x]]$observed_states$cluster)) * num_hidden_states -
+#       2 * mean(alt_prob)
+#     
+#     loss <- alt_prob_bic - base_prob_bic
+#     return(loss)
+#   })
+# }, mc.cores = detectCores())
+# 
+# dissimilarity_table <- data.frame(dissimilarity_table)
+# colnames(dissimilarity_table) <- paste(lapply(worm_hmm_lists, function(x) as.character(x$worm_name)), "states", sep = "_")
+# rownames(dissimilarity_table) <- paste(lapply(worm_hmm_lists, function(x) as.character(x$worm_name)), "hmm", sep = "_")
+# View(dissimilarity_table)
+# 
+# return(dissimilarity_table)
