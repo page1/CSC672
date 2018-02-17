@@ -95,8 +95,13 @@ clust <- kml3d(ld3, nbClusters = c(3, 4, 5, 6, 7), nbRedrawing = 100)
 number_of_clusters <- 3
 
 # plot stats of one of the trialed cluster nb values vs time
-plot(ld3, number_of_clusters, main = paste("All Worms ", sub_path_frames, " Frames Sampled 1/", sample_rate, sep = ""), addLegend = F)
-
+path <- file.path("results", paste("ds", sample_rate), paste("length", sub_path_frames), paste("clusters", number_of_clusters))
+dir.create(path, showWarnings = F, recursive = T)
+png(file.path(path, paste("tradj graph ", sample_rate, "_", sub_path_frames, "_", number_of_clusters, ".png", sep = "")),
+    width = 1000,
+    height = 700)
+plot(ld3, number_of_clusters, main = paste(number_of_clusters, " Clusters, ", sub_path_frames, " Frames, Sampled 1/", sample_rate, sep = ""), addLegend = F)
+dev.off()
 
 all_worm_df <- lapply(1:length(all_worm_sub_paths), function(x) {
   all_worm_sub_paths[[x]]$sub_path_id <- x
@@ -104,6 +109,32 @@ all_worm_df <- lapply(1:length(all_worm_sub_paths), function(x) {
   return(all_worm_sub_paths[[x]])
 }) %>%
   do.call("rbind", .)
+
+
+for(cluster_number in 1:number_of_clusters){
+  cluster_letter <- c('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I')[cluster_number]
+  
+  cluster_paths <- all_worm_df %>%
+    filter(cluster == cluster_letter)
+  
+  g <- ggplot(aes(x = rotated_xpos, y = rotated_ypos, group = sub_path_id), data = cluster_paths) +
+    geom_path() +
+    labs(title = paste("Cluster", cluster_letter, "-", cluster_number, "of", number_of_clusters),
+         subtitle = paste(number_of_clusters, " Clusters, ", sub_path_frames, " Frames, Sampled 1/", sample_rate, sep = ""))
+  
+  print(g)
+  ggsave(file.path(path, paste("cluster graph ", sample_rate, "_", sub_path_frames, "_", number_of_clusters, "_", cluster_letter, ".png", sep = "")), plot = g)
+}
+
+for(worm_name_ in unique(all_worm_df$worm_name)){
+  g <- ggplot(aes(x = xpos, y = ypos, group = sub_path_id, color = cluster), data = filter(all_worm_df, worm_name == worm_name_)) +
+    geom_path() +
+    labs(title = paste("Clusters transitions through path -", worm_name_),
+         subtitle = paste(number_of_clusters, " Clusters, ", sub_path_frames, " Frames, Sampled 1/", sample_rate, sep = ""))
+  
+  print(g)
+  ggsave(file.path(path, paste("worm path graph ", sample_rate, "_", sub_path_frames, "_", number_of_clusters, "_", worm_name_, ".png", sep = "")), plot = g)
+}
 
 #time spent in each observed cluster
 View(all_worm_df %>%
@@ -202,26 +233,6 @@ bic_tables <- lapply(hmm_lists_by_hidden_states, function(hidden_state_data){
     return(foward_bic_loss_table)
 })
 
-for(cluster_number in 1:number_of_clusters){
-  cluster_letter <- c('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I')[cluster_number]
-  
-  cluster_paths <- all_worm_df %>%
-    filter(cluster == cluster_letter)
-  
-  g <- ggplot(aes(x = rotated_xpos, y = rotated_ypos, group = sub_path_id, color = sub_path_id), data = cluster_paths) +
-    geom_path() +
-    ggtitle(paste("Cluster", cluster_letter, "-", cluster_number, "of", number_of_clusters))
-  
-  print(g)
-}
-
-for(worm_name_ in unique(all_worm_df$worm_name)){
-  g <- ggplot(aes(x = xpos, y = ypos, group = sub_path_id, color = cluster), data = filter(all_worm_df, worm_name == worm_name_)) +
-    geom_path() +
-    ggtitle(paste("Clusters transitions through path -", worm_name_))
-  
-  print(g)
-}
 
 
 
