@@ -169,7 +169,7 @@ for(trial in 1:nrow(trials)){
     arrange(cluster)
   
   View(transition_table)
-  write.csv(time_per_state, row.names = F, file = file.path(path, "observed_transition_table.csv"))
+  write.csv(transition_table, row.names = F, file = file.path(path, "observed_transition_table.csv"))
   
   
   hmm_list_file_path <- paste("hmm_lists_by_hidden_states", number_of_clusters, "movement_clusters",
