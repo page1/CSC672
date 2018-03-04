@@ -24,7 +24,7 @@ trials <- data.frame('sample_rate' =     c(2, 3, 3, 10, 10, 20),
                      'sub_path_frames' = c(66, 50, 166, 50, 50, 25),
                      'clusters' =        c(3, 5, 4, 4, 6, 4))
 
-for(trial in 1:nrow(trials)){
+bic_tables <- lapply(1:nrow(trials), function(trial){
   print(paste("trial", trial))
   sub_path_frames <- trials$sub_path_frames[trial]
   sample_rate <- trials$sample_rate[trial]
@@ -106,7 +106,10 @@ for(trial in 1:nrow(trials)){
   png(file.path(path, paste("tradj graph ", sample_rate, "_", sub_path_frames, "_", number_of_clusters, ".png", sep = "")),
       width = 1000,
       height = 700)
-  plot(ld3, number_of_clusters, main = paste(number_of_clusters, " Clusters, ", sub_path_frames, " Frames, Sampled 1/", sample_rate, sep = ""), addLegend = F)
+  plot(ld3, number_of_clusters, 
+       #parTraj=parTRAJ(type="n"),
+       parMean=parMEAN(pchPeriod = 10),
+       main = paste(number_of_clusters, " Clusters, ", sub_path_frames, " Frames, Sampled 1/", sample_rate, sep = ""), addLegend = F)
   dev.off()
   
   all_worm_df <- lapply(1:length(all_worm_sub_paths), function(x) {
@@ -126,7 +129,9 @@ for(trial in 1:nrow(trials)){
     g <- ggplot(aes(x = rotated_xpos, y = rotated_ypos, group = sub_path_id), data = cluster_paths) +
       geom_path() +
       labs(title = paste("Cluster", cluster_letter, "-", cluster_number, "of", number_of_clusters),
-           subtitle = paste(number_of_clusters, " Clusters, ", sub_path_frames, " Frames, Sampled 1/", sample_rate, sep = ""))
+           subtitle = paste(number_of_clusters, " Clusters, ", sub_path_frames, " Frames, Sampled 1/", sample_rate, sep = "")) +
+      coord_cartesian(xlim = c(min(all_worm_df$rotated_xpos), max(all_worm_df$rotated_xpos)),
+                      ylim = c(min(all_worm_df$rotated_ypos), max(all_worm_df$rotated_ypos)))
     
     print(g)
     ggsave(file.path(path, paste("cluster graph ", sample_rate, "_", sub_path_frames, "_", number_of_clusters, "_", cluster_letter, ".png", sep = "")), plot = g)
@@ -260,65 +265,44 @@ for(trial in 1:nrow(trials)){
     select(hidden_states, worm_model, N2_f1_states, N2_nf4_states, N2_nf5_states, tph1_f6_states)
 
   write.csv(bic_table_combine, row.names = F, file = file.path(path, "HMM_BIC_table_combine.csv"))
+  
+  return(bic_table_combine)
+})
+
+
+all_bic <- lapply(1:length(bic_tables), function(trial){
+  bic_tables[[trial]]$trial <- trial
+  return(bic_tables[[trial]])
+}) %>% do.call("rbind", .)
+
+special_stand <- function(x){
+  (x - mean(x)) / sd(x)
 }
+percent_minus_min <- function(x){
+  (x - min(x)) / min(x)
+}
+trials$trial_number <- 1:nrow(trials)
+trials_to_keep <- trials %>%
+  filter(trial_number == 4)
+normalized_bic <- all_bic %>%
+  filter(trial %in% trials_to_keep$trial_number) %>%
+  group_by(hidden_states, trial) %>%
+  mutate_if(is.numeric, percent_minus_min)
+  #mutate_if(is.numeric, special_stand)
+
+summary_bic <- normalized_bic %>%
+  ungroup() %>%  
+  select(-trial) %>%
+  group_by(worm_model) %>%
+  summarize_all(mean)
+
+d <- as.matrix(summary_bic[,3:6])
+min_val <- min(d[d!=0])
+max_val <- max(d[d!=0])
+d[d!=0] <- 1 - 2 * ((d[d!=0]-min_val)/(max_val - min_val))
+rownames(d) <- summary_bic$worm_model
 
 
-
-# #Investigate dissimilarity of hidden states between pairwise worms
-# dissimilarity_table <- mclapply(1:length(worm_hmm_lists), function(x){
-#   sapply(1:length(worm_hmm_lists), function(y){
-#     #Identify most likely sequence of hidden states for worm X
-#     partitions <- lapply(worm_hmm_lists[[x]]$hmm_list, function(hmm){
-#       as.cl_hard_partition(viterbi(hmm, worm_hmm_lists[[x]]$observed_states$cluster))
-#     })
-#     ensemble <- cl_ensemble(list = partitions)
-#     #ensemble the viterbi sequence of model X on dataset X
-#     #x_consensus <- cl_consensus(ensemble)
-#     x_consensus <- cl_medoid(ensemble)
-#     
-#     partitions <- lapply(worm_hmm_lists[[y]]$hmm_list, function(hmm){
-#       as.cl_hard_partition(viterbi(hmm, worm_hmm_lists[[x]]$observed_states$cluster))
-#     })
-#     ensemble <- cl_ensemble(list = partitions)
-#     #ensemble the viterbi sequence of model Y on dataset X
-#     #y_consensus <- cl_consensus(ensemble)
-#     y_consensus <- cl_medoid(ensemble)
-#     
-#     #Compair the ensemble viterbi sequences
-#     cl_dissimilarity(x_consensus, y_consensus)
-#   })
-# }, mc.cores = detectCores())
-# 
-# dissimilarity_table <- data.frame(dissimilarity_table)
-# colnames(dissimilarity_table) <- paste(lapply(worm_hmm_lists, function(x) as.character(x$worm_name)), "states", sep = "_")
-# rownames(dissimilarity_table) <- paste(lapply(worm_hmm_lists, function(x) as.character(x$worm_name)), "hmm", sep = "_")
-# View(dissimilarity_table)
-# 
-# foward_bic_loss_table <- mclapply(1:length(worm_hmm_lists), function(x){
-#   sapply(1:length(worm_hmm_lists), function(y){
-#     #Identify most likely sequence of hidden states for worm X
-#     base_prob <- lapply(worm_hmm_lists[[x]]$hmm_list, function(hmm){
-#       foward(hmm, worm_hmm_lists[[x]]$observed_states$cluster)
-#     })
-#     
-#     base_prob_bic <- log(length(worm_hmm_lists[[x]]$observed_states$cluster)) * num_hidden_states -
-#       2 * mean(base_prob)
-#     
-#     alt_prob <- lapply(worm_hmm_lists[[y]]$hmm_list, function(hmm){
-#       foward(viterbi(hmm, worm_hmm_lists[[x]]$observed_states$cluster))
-#     })
-#     
-#     alt_prob_bic <- log(length(worm_hmm_lists[[x]]$observed_states$cluster)) * num_hidden_states -
-#       2 * mean(alt_prob)
-#     
-#     loss <- alt_prob_bic - base_prob_bic
-#     return(loss)
-#   })
-# }, mc.cores = detectCores())
-# 
-# dissimilarity_table <- data.frame(dissimilarity_table)
-# colnames(dissimilarity_table) <- paste(lapply(worm_hmm_lists, function(x) as.character(x$worm_name)), "states", sep = "_")
-# rownames(dissimilarity_table) <- paste(lapply(worm_hmm_lists, function(x) as.character(x$worm_name)), "hmm", sep = "_")
-# View(dissimilarity_table)
-# 
-# return(dissimilarity_table)
+corrplot(d, is.corr = F,
+         main = "-1 to 1 Rescaled Mean BIC",
+         mar=c(0,0,1,0))
