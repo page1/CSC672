@@ -91,7 +91,7 @@ bic_tables <- lapply(1:nrow(trials), function(trial){
     aperm(c(3,1,2))
   
   # this data structure is needed for kml3d
-  ld3 <- clusterLongData3d(traj=tradjectory_data,
+  ld3 <<- clusterLongData3d(traj=tradjectory_data,
                            idAll=paste("I-",1:dim(tradjectory_data)[1],sep=""),
                            time=1:dim(tradjectory_data)[2],
                            varNames = c("rotated_xpos", "rotated_ypos"))
@@ -124,11 +124,15 @@ bic_tables <- lapply(1:nrow(trials), function(trial){
     cluster_letter <- c('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I')[cluster_number]
     
     cluster_paths <- all_worm_df %>%
-      filter(cluster == cluster_letter)
+      filter(cluster == cluster_letter) %>%
+      mutate(cluster = ifelse(cluster == 'A', 'Ahead',
+                                       ifelse(cluster == 'B', 'Ahead Slow',
+                                              ifelse(cluster == 'C', 'Right', 
+                                                     ifelse(cluster == 'D', 'Left', cluster)))))
     
     g <- ggplot(aes(x = rotated_xpos, y = rotated_ypos, group = sub_path_id), data = cluster_paths) +
       geom_path() +
-      labs(title = paste("Cluster", cluster_letter, "-", cluster_number, "of", number_of_clusters),
+      labs(title = paste("Cluster", cluster_paths$cluster[[1]], "-", cluster_number, "of", number_of_clusters),
            subtitle = paste(number_of_clusters, " Clusters, ", sub_path_frames, " Frames, Sampled 1/", sample_rate, sep = "")) +
       coord_cartesian(xlim = c(min(all_worm_df$rotated_xpos), max(all_worm_df$rotated_xpos)),
                       ylim = c(min(all_worm_df$rotated_ypos), max(all_worm_df$rotated_ypos)))
@@ -138,7 +142,14 @@ bic_tables <- lapply(1:nrow(trials), function(trial){
   }
   
   for(worm_name_ in unique(all_worm_df$worm_name)){
-    g <- ggplot(aes(x = xpos, y = ypos, group = sub_path_id, color = cluster), data = filter(all_worm_df, worm_name == worm_name_)) +
+    worm_data <- all_worm_df %>%
+      filter(worm_name == worm_name_) %>%
+      mutate(cluster = ifelse(cluster == 'A', 'Ahead',
+                              ifelse(cluster == 'B', 'Ahead Slow',
+                                     ifelse(cluster == 'C', 'Right', 
+                                            ifelse(cluster == 'D', 'Left', cluster)))))
+    
+    g <- ggplot(aes(x = xpos, y = ypos, group = sub_path_id, color = cluster), data = worm_data) +
       geom_path() +
       labs(title = paste("Clusters transitions through path -", worm_name_),
            subtitle = paste(number_of_clusters, " Clusters, ", sub_path_frames, " Frames, Sampled 1/", sample_rate, sep = ""))
@@ -306,3 +317,26 @@ rownames(d) <- summary_bic$worm_model
 corrplot(d, is.corr = F,
          main = "-1 to 1 Rescaled Mean BIC",
          mar=c(0,0,1,0))
+
+
+load("hmm_lists_by_hidden_states_4_movement_clusters_50_frames_10_downsample.Rdata")
+models <- hmm_lists_by_hidden_states[[1]]
+for(worm_model in models){
+  hmm <- worm_model$hmm_list[[1]]
+  
+  hidden_states_edge_list <- lapply(0:(dim(hmm$transProbs)[1] * dim(hmm$transProbs)[2] - 1), function(index){
+    data.frame('Source' = rownames(hmm$transProbs)[index %% dim(hmm$transProbs)[1] + 1],
+               'Target' = colnames(hmm$transProbs)[index %/% dim(hmm$transProbs)[1] + 1],
+               'Weight' = hmm$transProbs[index %% dim(hmm$transProbs)[1] + 1, index %/% dim(hmm$transProbs)[1] + 1])
+  }) %>% do.call("rbind", .)
+  transmision_edge_list <- lapply(0:(dim(hmm$emissionProbs)[1] * dim(hmm$emissionProbs)[2] - 1), function(index){
+    data.frame('Source' = rownames(hmm$emissionProbs)[index %% dim(hmm$emissionProbs)[1] + 1],
+               'Target' = colnames(hmm$emissionProbs)[index %/% dim(hmm$emissionProbs)[1] + 1],
+               'Weight' = hmm$emissionProbs[index %% dim(hmm$emissionProbs)[1] + 1, index %/% dim(hmm$emissionProbs)[1] + 1])
+  }) %>% do.call("rbind", .)
+  
+  write.csv(rbind(hidden_states_edge_list, transmision_edge_list), 
+            file = paste(worm_model$worm_name, ".csv", sep = ""),
+            row.names = F)
+}
+
