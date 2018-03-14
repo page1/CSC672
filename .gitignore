@@ -36,3 +36,5 @@ vignettes/*.pdf
 #System Files
 .DS_Store
 .Rproj.user
+
+*.html
