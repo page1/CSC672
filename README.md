@@ -5,6 +5,11 @@ This code was used to investigate C. elegans movement for the MS of Predictive A
 * preliminary_analysis.R - Generates several summary statistic plots and places them in the prelim folder
 * feature_discovery.R - Runs several trials of investigation, completing KML3D clustering of worm trajectory, and fitting of trajectory sequence with HMM. Many plots are generated summarizing findings in results folder.
 
+## Submitted Papers
+
+* Project Summary.docx - Executive summary submitted
+* Final Paper_Wigglers 3.14.docx - The final paper submitted
+
 ## Quick Findings
 
 * C. elegans movement is clusterable into 4 major clusters representing: Ahead, Ahead Slow, Left, and Right. 
